@@ -7,9 +7,6 @@ from playwright.sync_api import sync_playwright
 app = Flask(__name__)
 CORS(app)
 
-# --- THE SPEED HACK ---
-# Keep the browser open in memory globally so we don't 
-# waste 10 seconds booting Chromium for every single request.
 playwright_instance = None
 browser = None
 
@@ -21,36 +18,41 @@ def get_browser():
         browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
     return browser
 
-# --- CORE LOGIC ---
-
 def get_attendance_fast(roll, password, just_verify=False):
     b = get_browser()
-    # Create a fresh, lightweight tab/context for this specific user
     context = b.new_context(
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
     page = context.new_page()
 
-    # SUPER SPEED: Block heavy resources
+    # SUPER SPEED: Block images, css, fonts, and media
     page.route("**/*", lambda route: route.abort() 
                if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
                else route.continue_())
 
     try:
-        page.goto("https://samvidha.iare.ac.in/index.php", timeout=30000)
+        # wait_until="domcontentloaded" -> Doesn't wait for everything to finish loading, just the basic HTML structure
+        page.goto("https://samvidha.iare.ac.in/index.php", wait_until="domcontentloaded", timeout=30000)
         
         page.fill("[name='txt_uname']", roll)
         page.fill("[name='txt_pwd']", password)
-        
-        # THE FIX: Removed 'input' from the locator so it clicks the <button> tag properly.
-        with page.expect_navigation(url="**/home**", timeout=20000):
-            page.locator("[name='but_submit']").click()
+        page.locator("[name='but_submit']").click()
 
         if just_verify:
-            context.close()
-            return True
+            # THE ULTIMATE SPEED HACK:
+            # wait_until="commit" -> The exact millisecond the server accepts the login and changes the URL, 
+            # we return True. We DO NOT wait for the 'home' page HTML to actually download!
+            try:
+                page.wait_for_url("**/home**", wait_until="commit", timeout=15000)
+                context.close()
+                return True
+            except Exception as e:
+                context.close()
+                return False
 
-        page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", timeout=20000)
+        # If they want Attendance data, we DO need to wait for the page to load
+        page.wait_for_url("**/home**", wait_until="domcontentloaded", timeout=15000)
+        page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", wait_until="domcontentloaded", timeout=20000)
         
         if page.locator("table").filter(has_text="Course Name").count() == 0:
             context.close()
@@ -76,7 +78,6 @@ def get_attendance_fast(roll, password, just_verify=False):
         context.close()
         return {"error": str(e)}
 
-# --- ROUTES ---
 
 @app.route('/api/verify', methods=['POST'])
 def verify_user():
@@ -92,7 +93,7 @@ def verify_user():
     if isinstance(result, dict) and "error" in result:
         return jsonify({"valid": False, "error": result["error"]})
         
-    return jsonify({"valid": True})
+    return jsonify({"valid": result}) # Fixed: actually return the True/False result
 
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
