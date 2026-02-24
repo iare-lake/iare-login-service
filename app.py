@@ -10,57 +10,41 @@ CORS(app)
 # --- CORE LOGIC ---
 
 def get_attendance_fast(roll, password, just_verify=False):
-    """
-    If just_verify=True, returns Boolean (Login Success/Fail).
-    If just_verify=False, returns Attendance Data (JSON).
-    """
     with sync_playwright() as p:
-        # Launch lightweight Chromium
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         
-        # Create context with realistic User Agent
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         )
         page = context.new_page()
 
-        # [SPEED HACK] BLOCK Images, CSS, Fonts
-        # This reduces data usage by 90% and speeds up loading by 3x
         page.route("**/*", lambda route: route.abort() 
                    if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
                    else route.continue_())
 
         try:
-            # 1. Login
-            page.goto("https://samvidha.iare.ac.in/index.php", timeout=15000)
+            # INCREASED TIMEOUT: Render is slow, giving it 60 seconds (60000ms)
+            page.goto("https://samvidha.iare.ac.in/index.php", timeout=60000)
             
-            # Fill form
             page.fill("input[name='txt_uname']", roll)
             page.fill("input[name='txt_pwd']", password)
             
-            # Click submit and wait for URL change (max 10s)
-            with page.expect_navigation(url="**/home**", timeout=10000):
+            with page.expect_navigation(url="**/home**", timeout=60000):
                 page.click("input[name='but_submit']")
 
-            # If we are here, Login was successful (URL changed to home)
             if just_verify:
                 browser.close()
                 return True
 
-            # 2. Go to Attendance Page
-            page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", timeout=10000)
+            page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", timeout=60000)
             
-            # Check if table exists
             if page.locator("table").filter(has_text="Course Name").count() == 0:
                 browser.close()
                 return {"error": "Attendance table not found"}
 
-            # 3. Scrape Data
-            # We use Playwright's locator API which is faster than BS4 here
             rows = page.locator("table").filter(has_text="Course Name").locator("tr").all()
             
             attendance_data = []
-            # Skip header row (start from index 1)
             for row in rows[1:]:
                 cols = row.locator("td").all()
                 if len(cols) >= 8:
@@ -76,8 +60,7 @@ def get_attendance_fast(roll, password, just_verify=False):
 
         except Exception as e:
             browser.close()
-            print(f"Error: {e}")
-            if just_verify: return False
+            # If it fails, return the EXACT error string
             return {"error": str(e)}
 
 # --- ROUTES ---
@@ -91,8 +74,13 @@ def verify_user():
     if not roll or not password:
         return jsonify({"valid": False, "error": "Missing credentials"}), 400
 
-    is_valid = get_attendance_fast(roll, password, just_verify=True)
-    return jsonify({"valid": is_valid})
+    result = get_attendance_fast(roll, password, just_verify=True)
+    
+    # If it returned a dictionary with an error, show it to the user!
+    if isinstance(result, dict) and "error" in result:
+        return jsonify({"valid": False, "error": result["error"]})
+        
+    return jsonify({"valid": True})
 
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
@@ -108,7 +96,6 @@ def get_attendance():
 
 @app.route('/api/download', methods=['POST'])
 def proxy_download():
-    # Your existing download logic works fine, keeping it as is
     data = request.json
     roll = data.get('roll')
     doc_type = data.get('type')
