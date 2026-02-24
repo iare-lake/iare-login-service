@@ -1,24 +1,32 @@
-FROM python:3.9
+FROM python:3.9-slim
 
-# Install system dependencies for Chrome + Playwright
+# 1. Install system dependencies required for Playwright
+# These are the Linux libraries that Chrome/Firefox need to run
 RUN apt-get update && apt-get install -y \
     wget \
-    unzip \
-    libglib2.0-0 \
-    libnss3 \
-    libgconf-2-4 \
-    libfontconfig1 \
+    libipc-run-perl \
+    libgstreamer-gl1.0-0 \
+    libgstreamer-plugins-bad1.0-0 \
+    gstreamer1.0-plugins-good \
+    libenchant-2-2 \
+    libsecret-1-0 \
+    libmanette-0.2-0 \
+    libgles2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# 2. Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers (Chromium)
-RUN playwright install --with-deps chromium
+# 3. Install Playwright Browsers (Chromium only to save space)
+RUN playwright install chromium
+RUN playwright install-deps chromium
 
+# 4. Copy Application Code
 COPY . .
 
-# Run with Gunicorn - single worker to avoid threading issues
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:10000", "app:app", "--timeout", "120"]
+# 5. Run the app
+# Increased timeout to 60s
+CMD ["gunicorn", "-b", "0.0.0.0:10000", "app:app", "--timeout", "60"]
