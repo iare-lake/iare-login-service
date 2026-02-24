@@ -7,61 +7,74 @@ from playwright.sync_api import sync_playwright
 app = Flask(__name__)
 CORS(app)
 
+# --- THE SPEED HACK ---
+# Keep the browser open in memory globally so we don't 
+# waste 10 seconds booting Chromium for every single request.
+playwright_instance = None
+browser = None
+
+def get_browser():
+    global playwright_instance, browser
+    if browser is None:
+        print("[-] Booting Global Browser Instance...")
+        playwright_instance = sync_playwright().start()
+        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    return browser
+
 # --- CORE LOGIC ---
 
 def get_attendance_fast(roll, password, just_verify=False):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    b = get_browser()
+    # Create a fresh, lightweight tab/context for this specific user
+    context = b.new_context(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+    page = context.new_page()
+
+    # SUPER SPEED: Block heavy resources
+    page.route("**/*", lambda route: route.abort() 
+               if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
+               else route.continue_())
+
+    try:
+        page.goto("https://samvidha.iare.ac.in/index.php", timeout=30000)
         
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        )
-        page = context.new_page()
+        page.fill("[name='txt_uname']", roll)
+        page.fill("[name='txt_pwd']", password)
+        
+        # THE FIX: Removed 'input' from the locator so it clicks the <button> tag properly.
+        with page.expect_navigation(url="**/home**", timeout=20000):
+            page.locator("[name='but_submit']").click()
 
-        page.route("**/*", lambda route: route.abort() 
-                   if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
-                   else route.continue_())
+        if just_verify:
+            context.close()
+            return True
 
-        try:
-            # INCREASED TIMEOUT: Render is slow, giving it 60 seconds (60000ms)
-            page.goto("https://samvidha.iare.ac.in/index.php", timeout=60000)
-            
-            page.fill("input[name='txt_uname']", roll)
-            page.fill("input[name='txt_pwd']", password)
-            
-            with page.expect_navigation(url="**/home**", timeout=60000):
-                page.click("input[name='but_submit']")
+        page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", timeout=20000)
+        
+        if page.locator("table").filter(has_text="Course Name").count() == 0:
+            context.close()
+            return {"error": "Attendance table not found"}
 
-            if just_verify:
-                browser.close()
-                return True
+        rows = page.locator("table").filter(has_text="Course Name").locator("tr").all()
+        
+        attendance_data = []
+        for row in rows[1:]:
+            cols = row.locator("td").all()
+            if len(cols) >= 8:
+                attendance_data.append({
+                    "subject": cols[2].inner_text().strip(),
+                    "total": cols[5].inner_text().strip(),
+                    "present": cols[6].inner_text().strip(),
+                    "percent": cols[7].inner_text().strip()
+                })
 
-            page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", timeout=60000)
-            
-            if page.locator("table").filter(has_text="Course Name").count() == 0:
-                browser.close()
-                return {"error": "Attendance table not found"}
+        context.close()
+        return {"success": True, "data": attendance_data}
 
-            rows = page.locator("table").filter(has_text="Course Name").locator("tr").all()
-            
-            attendance_data = []
-            for row in rows[1:]:
-                cols = row.locator("td").all()
-                if len(cols) >= 8:
-                    attendance_data.append({
-                        "subject": cols[2].inner_text().strip(),
-                        "total": cols[5].inner_text().strip(),
-                        "present": cols[6].inner_text().strip(),
-                        "percent": cols[7].inner_text().strip()
-                    })
-
-            browser.close()
-            return {"success": True, "data": attendance_data}
-
-        except Exception as e:
-            browser.close()
-            # If it fails, return the EXACT error string
-            return {"error": str(e)}
+    except Exception as e:
+        context.close()
+        return {"error": str(e)}
 
 # --- ROUTES ---
 
@@ -76,7 +89,6 @@ def verify_user():
 
     result = get_attendance_fast(roll, password, just_verify=True)
     
-    # If it returned a dictionary with an error, show it to the user!
     if isinstance(result, dict) and "error" in result:
         return jsonify({"valid": False, "error": result["error"]})
         
