@@ -1,83 +1,42 @@
 import os
 import requests
+from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 CORS(app)
 
-playwright_instance = None
-browser = None
+# The "Secret Handshake" Headers we discovered
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "X-Requested-With": "XMLHttpRequest",
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "Referer": "https://samvidha.iare.ac.in/index.php"
+}
 
-def get_browser():
-    global playwright_instance, browser
-    if browser is None:
-        print("[-] Booting Global Browser Instance...")
-        playwright_instance = sync_playwright().start()
-        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    return browser
-
-def get_attendance_fast(roll, password, just_verify=False):
-    b = get_browser()
-    context = b.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-    page = context.new_page()
-
-    # SUPER SPEED: Block images, css, fonts, and media
-    page.route("**/*", lambda route: route.abort() 
-               if route.request.resource_type in ["image", "stylesheet", "font", "media"] 
-               else route.continue_())
-
+def do_fast_login(roll, password):
+    """Logs in via the hidden AJAX API. Returns the session if successful, else None."""
+    session = requests.Session()
     try:
-        # wait_until="domcontentloaded" -> Doesn't wait for everything to finish loading, just the basic HTML structure
-        page.goto("https://samvidha.iare.ac.in/index.php", wait_until="domcontentloaded", timeout=30000)
+        # 1. Hit index to grab the PHPSESSID cookie
+        session.get("https://samvidha.iare.ac.in/index.php", headers=HEADERS, timeout=10)
         
-        page.fill("[name='txt_uname']", roll)
-        page.fill("[name='txt_pwd']", password)
-        page.locator("[name='but_submit']").click()
-
-        if just_verify:
-            # THE ULTIMATE SPEED HACK:
-            # wait_until="commit" -> The exact millisecond the server accepts the login and changes the URL, 
-            # we return True. We DO NOT wait for the 'home' page HTML to actually download!
-            try:
-                page.wait_for_url("**/home**", wait_until="commit", timeout=15000)
-                context.close()
-                return True
-            except Exception as e:
-                context.close()
-                return False
-
-        # If they want Attendance data, we DO need to wait for the page to load
-        page.wait_for_url("**/home**", wait_until="domcontentloaded", timeout=15000)
-        page.goto("https://samvidha.iare.ac.in/home?action=stud_att_STD", wait_until="domcontentloaded", timeout=20000)
+        # 2. Hit the hidden verification API
+        login_url = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
+        payload = {"username": roll, "password": password}
         
-        if page.locator("table").filter(has_text="Course Name").count() == 0:
-            context.close()
-            return {"error": "Attendance table not found"}
-
-        rows = page.locator("table").filter(has_text="Course Name").locator("tr").all()
+        resp = session.post(login_url, data=payload, headers=HEADERS, timeout=10)
         
-        attendance_data = []
-        for row in rows[1:]:
-            cols = row.locator("td").all()
-            if len(cols) >= 8:
-                attendance_data.append({
-                    "subject": cols[2].inner_text().strip(),
-                    "total": cols[5].inner_text().strip(),
-                    "present": cols[6].inner_text().strip(),
-                    "percent": cols[7].inner_text().strip()
-                })
-
-        context.close()
-        return {"success": True, "data": attendance_data}
-
+        # 3. Check if server replied with {"status":"1"}
+        if resp.json().get("status") == "1":
+            return session
     except Exception as e:
-        context.close()
-        return {"error": str(e)}
+        print(f"Login Error: {e}")
+        
+    return None
 
+# --- ROUTES ---
 
 @app.route('/api/verify', methods=['POST'])
 def verify_user():
@@ -88,12 +47,12 @@ def verify_user():
     if not roll or not password:
         return jsonify({"valid": False, "error": "Missing credentials"}), 400
 
-    result = get_attendance_fast(roll, password, just_verify=True)
+    # The 1-second verification check
+    session = do_fast_login(roll, password)
     
-    if isinstance(result, dict) and "error" in result:
-        return jsonify({"valid": False, "error": result["error"]})
-        
-    return jsonify({"valid": result}) # Fixed: actually return the True/False result
+    if session:
+        return jsonify({"valid": True})
+    return jsonify({"valid": False, "error": "Invalid credentials"})
 
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
@@ -101,14 +60,49 @@ def get_attendance():
     roll = data.get('roll')
     password = data.get('password')
     
-    result = get_attendance_fast(roll, password, just_verify=False)
-    
-    if "error" in result:
-        return jsonify(result), 500
-    return jsonify(result)
+    # Authenticate instantly
+    session = do_fast_login(roll, password)
+    if not session:
+        return jsonify({"error": "Invalid credentials"}), 401
+        
+    try:
+        # Fetch the attendance HTML
+        att_url = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
+        resp = session.get(att_url, headers=HEADERS, timeout=15)
+        
+        # Parse it with BeautifulSoup (Much faster than Playwright here)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        target_table = None
+        for t in soup.find_all('table'):
+            if "Course Name" in t.text:
+                target_table = t
+                break
+                
+        if not target_table:
+            return jsonify({"error": "Attendance table not found on page"}), 404
+            
+        rows = target_table.find_all('tr')
+        attendance_data = []
+        
+        # Skip header row
+        for row in rows[1:]:
+            cols = row.find_all('td')
+            if len(cols) >= 8:
+                attendance_data.append({
+                    "subject": cols[2].text.strip(),
+                    "total": cols[5].text.strip(),
+                    "present": cols[6].text.strip(),
+                    "percent": cols[7].text.strip()
+                })
+                
+        return jsonify({"success": True, "data": attendance_data})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/download', methods=['POST'])
 def proxy_download():
+    # Your original proxy download logic - kept exactly as is!
     data = request.json
     roll = data.get('roll')
     doc_type = data.get('type')
@@ -139,7 +133,7 @@ def proxy_download():
 
 @app.route('/')
 def home():
-    return "IARE Backend Service Running"
+    return "IARE Backend Service Running ULTRA FAST"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
