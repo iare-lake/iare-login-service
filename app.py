@@ -109,7 +109,7 @@ def get_biometric():
             cols = row.find_all('td')
             if len(cols) >= 7:
                 date_str = cols[3].text.strip()
-                status = cols[6].text.strip()
+                status = cols[9].text.strip()
                 
                 if date_str and "Date" not in date_str:
                     try:
