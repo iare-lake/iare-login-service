@@ -30,6 +30,75 @@ def do_fast_login(roll, password):
         print(f"Login Error: {e}")
     return None
 
+def scrape_profile_data(session):
+    """Scrapes student profile details from https://samvidha.iare.ac.in/home?action=profile"""
+    try:
+        prof_url = "https://samvidha.iare.ac.in/home?action=profile"
+        resp = session.get(prof_url, headers=HEADERS, timeout=15)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        profile_data = {}
+
+        def match_and_set(label, val):
+            if not val or val in ["--", "N/A", "null", "None"]:
+                return
+            l = label.lower().strip()
+            v = val.strip()
+            if not v:
+                return
+            if ("aebas" in l or "jntuh" in l) and "jntuhAebas" not in profile_data:
+                profile_data["jntuhAebas"] = v
+            elif ("gender" in l or "sex" in l) and "gender" not in profile_data:
+                profile_data["gender"] = v
+            elif ("birth" in l or "dob" in l) and "dob" not in profile_data:
+                profile_data["dob"] = v
+            elif ("joining" in l or "doj" in l) and "doj" not in profile_data:
+                profile_data["doj"] = v
+            elif ("caste" in l or "category" in l or "community" in l) and "casteCategory" not in profile_data:
+                profile_data["casteCategory"] = v
+            elif ("mobile" in l or "phone" in l or "cell" in l) and "mobile" not in profile_data:
+                profile_data["mobile"] = v
+            elif ("email" in l or "mail" in l) and "mail" not in profile_data:
+                profile_data["mail"] = v
+            elif "section" in l and "section" not in profile_data:
+                profile_data["section"] = v
+            elif ("branch" in l or "dept" in l or "course" in l) and "branch" not in profile_data:
+                profile_data["branch"] = v
+            elif ("year" in l or "sem" in l) and "year" not in profile_data:
+                profile_data["year"] = v
+            elif ("name" in l or "student" in l) and "name" not in profile_data and "course" not in l:
+                profile_data["name"] = v
+
+        # 1. Parse table rows & cells
+        for row in soup.find_all('tr'):
+            cols = row.find_all(['td', 'th'])
+            if len(cols) >= 2:
+                for i in range(0, len(cols) - 1, 2):
+                    label = cols[i].text.strip()
+                    val = cols[i+1].text.strip()
+                    match_and_set(label, val)
+
+        # 2. Parse form groups, labels, and spans/divs
+        for elem in soup.find_all(['div', 'p', 'li']):
+            label_elem = elem.find(['label', 'strong', 'b', 'span'])
+            if label_elem:
+                label_text = label_elem.text.strip()
+                full_text = elem.text.strip()
+                val_text = full_text.replace(label_text, '').strip(' :-')
+                match_and_set(label_text, val_text)
+
+        # 3. Inspect input & select fields
+        for inp in soup.find_all(['input', 'select', 'textarea']):
+            name_attr = (inp.get('name') or inp.get('id') or inp.get('placeholder') or '').lower()
+            val = inp.get('value', '').strip()
+            if val:
+                match_and_set(name_attr, val)
+
+        return profile_data
+    except Exception as e:
+        print(f"Profile Scraping Error: {e}")
+        return {}
+
 # --- ROUTES ---
 
 @app.route('/api/verify', methods=['POST'])
@@ -41,8 +110,25 @@ def verify_user():
         return jsonify({"valid": False, "error": "Missing credentials"}), 400
     session = do_fast_login(roll, password)
     if session:
-        return jsonify({"valid": True})
+        prof_data = scrape_profile_data(session)
+        return jsonify({"valid": True, "profile": prof_data, "samvidha": prof_data})
     return jsonify({"valid": False, "error": "Invalid credentials"})
+
+@app.route('/api/profile', methods=['POST'])
+def get_profile():
+    data = request.json
+    roll = data.get('roll')
+    password = data.get('password')
+    if not roll or not password:
+        return jsonify({"error": "Missing credentials"}), 400
+    session = do_fast_login(roll, password)
+    if not session:
+        return jsonify({"error": "Invalid credentials"}), 401
+    try:
+        prof_data = scrape_profile_data(session)
+        return jsonify({"success": True, "data": prof_data})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
@@ -158,6 +244,29 @@ def proxy_download():
         return Response(remote.iter_content(chunk_size=1024), headers=headers, status=200)
     except:
         return jsonify({"error": "Server Error"}), 500
+
+@app.route('/api/debug-profile', methods=['POST'])
+def debug_profile():
+    data = request.json
+    roll = data.get('roll')
+    password = data.get('password')
+    if not roll or not password:
+        return jsonify({"error": "Missing credentials"}), 400
+    session = do_fast_login(roll, password)
+    if not session:
+        return jsonify({"error": "Invalid credentials"}), 401
+    try:
+        prof_url = "https://samvidha.iare.ac.in/home?action=profile"
+        resp = session.get(prof_url, headers=HEADERS, timeout=15)
+        scraped = scrape_profile_data(session)
+        return jsonify({
+            "success": True,
+            "scraped_fields": scraped,
+            "raw_html_length": len(resp.text),
+            "raw_html_preview": resp.text[:5000]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def home():
