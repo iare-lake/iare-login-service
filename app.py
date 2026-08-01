@@ -40,36 +40,80 @@ def scrape_profile_data(session):
         profile_data = {}
 
         def match_and_set(label, val):
-            if not val or val in ["--", "N/A", "null", "None"]:
+            if not val or val.strip() in ["", "--", "N/A", "null", "None"]:
                 return
             l = label.lower().strip()
             v = val.strip()
             if not v:
                 return
+            # Skip labels that are just numbers or irrelevant
+            if l.isdigit() or l in ["s.no", "view", "status"]:
+                return
             if ("aebas" in l or "jntuh" in l) and "jntuhAebas" not in profile_data:
                 profile_data["jntuhAebas"] = v
+            elif ("abc" in l and "id" in l) and "abcId" not in profile_data:
+                profile_data["abcId"] = v
             elif ("gender" in l or "sex" in l) and "gender" not in profile_data:
                 profile_data["gender"] = v
-            elif ("birth" in l or "dob" in l) and "dob" not in profile_data:
+            elif ("date of birth" in l or "birth" in l or "dob" in l) and "dob" not in profile_data:
                 profile_data["dob"] = v
-            elif ("joining" in l or "doj" in l) and "doj" not in profile_data:
+            elif ("date of joining" in l or "joining" in l or "doj" in l) and "doj" not in profile_data:
                 profile_data["doj"] = v
-            elif ("caste" in l or "category" in l or "community" in l) and "casteCategory" not in profile_data:
+            elif ("caste" in l or "category" in l or "community" in l) and "fee" not in l and "casteCategory" not in profile_data:
                 profile_data["casteCategory"] = v
+                profile_data["caste"] = v
+            elif ("student phone" in l or "student mobile" in l) and "mobile" not in profile_data:
+                profile_data["mobile"] = v
+            elif ("parent phone" in l or "parent mobile" in l) and "parentPhone" not in profile_data:
+                profile_data["parentPhone"] = v
             elif ("mobile" in l or "phone" in l or "cell" in l) and "mobile" not in profile_data:
                 profile_data["mobile"] = v
+            elif ("student email" in l or "student mail" in l) and "mail" not in profile_data:
+                profile_data["mail"] = v
+            elif ("parent email" in l or "parent mail" in l) and "parentEmail" not in profile_data:
+                profile_data["parentEmail"] = v
+            elif ("domain email" in l) and "domainEmail" not in profile_data:
+                profile_data["domainEmail"] = v
             elif ("email" in l or "mail" in l) and "mail" not in profile_data:
                 profile_data["mail"] = v
             elif "section" in l and "section" not in profile_data:
                 profile_data["section"] = v
-            elif ("branch" in l or "dept" in l or "course" in l) and "branch" not in profile_data:
+            elif ("branch" in l or "dept" in l) and "branch" not in profile_data:
                 profile_data["branch"] = v
-            elif ("year" in l or "sem" in l) and "year" not in profile_data:
+            elif ("year" in l or "sem" in l) and "year" not in profile_data and "b.tech" not in l.replace(" ", ""):
                 profile_data["year"] = v
-            elif ("name" in l or "student" in l) and "name" not in profile_data and "course" not in l:
+            elif "roll" in l and "number" in l and "roll" not in profile_data:
+                profile_data["roll"] = v
+            elif "regulation" in l and "regulation" not in profile_data:
+                profile_data["regulation"] = v
+            elif "father" in l and "name" in l and "fatherName" not in profile_data:
+                profile_data["fatherName"] = v
+            elif "mother" in l and "name" in l and "motherName" not in profile_data:
+                profile_data["motherName"] = v
+            elif "religion" in l and "religion" not in profile_data:
+                profile_data["religion"] = v
+            elif ("name" in l) and "name" not in profile_data and "course" not in l and "father" not in l and "mother" not in l:
                 profile_data["name"] = v
 
-        # 1. Parse table rows & cells
+        # 1. Parse <dt>/<dd> pairs (General info, Admin info cards)
+        for dl in soup.find_all('dl'):
+            dts = dl.find_all('dt')
+            dds = dl.find_all('dd')
+            for dt, dd in zip(dts, dds):
+                label = dt.get_text(strip=True)
+                val = dd.get_text(strip=True)
+                match_and_set(label, val)
+
+        # 2. Parse <strong> + <p class="text-muted"> pairs (Contacts card)
+        for strong in soup.find_all('strong'):
+            label = strong.get_text(strip=True)
+            # The value is in the next <p> sibling
+            next_p = strong.find_next_sibling('p')
+            if next_p:
+                val = next_p.get_text(strip=True)
+                match_and_set(label, val)
+
+        # 3. Parse table rows & cells (certificates, etc - fallback)
         for row in soup.find_all('tr'):
             cols = row.find_all(['td', 'th'])
             if len(cols) >= 2:
@@ -78,16 +122,7 @@ def scrape_profile_data(session):
                     val = cols[i+1].text.strip()
                     match_and_set(label, val)
 
-        # 2. Parse form groups, labels, and spans/divs
-        for elem in soup.find_all(['div', 'p', 'li']):
-            label_elem = elem.find(['label', 'strong', 'b', 'span'])
-            if label_elem:
-                label_text = label_elem.text.strip()
-                full_text = elem.text.strip()
-                val_text = full_text.replace(label_text, '').strip(' :-')
-                match_and_set(label_text, val_text)
-
-        # 3. Inspect input & select fields
+        # 4. Inspect input & select fields (fallback)
         for inp in soup.find_all(['input', 'select', 'textarea']):
             name_attr = (inp.get('name') or inp.get('id') or inp.get('placeholder') or '').lower()
             val = inp.get('value', '').strip()
