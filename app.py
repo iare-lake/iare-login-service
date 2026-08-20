@@ -21,34 +21,47 @@ POST_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     "X-Requested-With": "XMLHttpRequest",
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-    "Referer": "https://samvidha.iare.ac.in/index.php"
+    "Origin": "https://samvidha.iare.ac.in",
+    "Referer": "https://samvidha.iare.ac.in/"
 }
 
 def do_fast_login(roll, password):
-    """Logs in via the Samvidha AJAX API with robust status and cookie handling."""
+    """Logs in via the Samvidha AJAX API with dynamic CSRF token and cookie handling."""
     session = requests.Session()
     try:
-        # Step 1: Initialize session cookies
-        session.get("https://samvidha.iare.ac.in/index.php", headers=GET_HEADERS, timeout=10)
+        # Step 1: Initialize session cookies and extract CSRF token
+        init_resp = session.get("https://samvidha.iare.ac.in/index.php", headers=GET_HEADERS, timeout=10)
         
-        # Step 2: Post login credentials with dual parameter support
+        soup = BeautifulSoup(init_resp.text, 'html.parser')
+        csrf_meta = soup.find('meta', {'name': 'csrf-token'})
+        csrf_token = csrf_meta.get('content') if csrf_meta else None
+
+        if not csrf_token:
+            print("Failed to extract CSRF token from login page.")
+            return None
+
+        # Step 2: Post login credentials with the dynamic CSRF token
         login_url = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
         payload = {
             "username": roll,
-            "password": password,
-            "txt_uname": roll,
-            "txt_pwd": password
+            "password": password
         }
-        resp = session.post(login_url, data=payload, headers=POST_HEADERS, timeout=10)
         
-        # Check response status safely (handles int 1, string "1", or boolean True)
+        headers = {
+            **POST_HEADERS,
+            "x-csrf-token": csrf_token
+        }
+        
+        resp = session.post(login_url, data=payload, headers=headers, timeout=10)
+        
+        # Check response status safely
         try:
             res_json = resp.json()
             status = str(res_json.get("status", "")).strip()
             success = status in ["1", "true", "True"] or res_json.get("success") is True
         except Exception:
             # Fallback text check if response is not standard JSON
-            success = '"status":1' in resp.text or '"status":"1"' in resp.text
+            success = '"status":"1"' in resp.text or '"status":1' in resp.text
 
         if success:
             # Step 3: Register logged-in state on home page
