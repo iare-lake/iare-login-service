@@ -173,6 +173,7 @@ def get_attendance():
     
     session = do_fast_login(roll, password)
     if not session:
+        # Keep 401 strictly for login failures
         return jsonify({"error": "Invalid credentials"}), 401
         
     try:
@@ -182,35 +183,28 @@ def get_attendance():
         
         target_table = None
         for t in soup.find_all('table'):
-            if "Course Name" in t.text or "ATTENDANCE REPORT" in t.text:
+            if "Course Name" in t.text or "Attended" in t.text:
                 target_table = t
                 break
                 
-        if not target_table:
-            return jsonify({"error": "Attendance table not found"}), 404
-            
-        rows = target_table.find_all('tr')
         attendance_data = []
+        if target_table:
+            for row in target_table.find_all('tr'):
+                cols = row.find_all('td')
+                if len(cols) >= 8:
+                    attendance_data.append({
+                        "code": cols[1].text.strip(),
+                        "subject": cols[2].text.strip(),
+                        "total": cols[5].text.strip(),
+                        "present": cols[6].text.strip(),
+                        "percent": cols[7].text.strip()
+                    })
         
-        for row in rows:
-            cols = row.find_all('td')
-            # Check if this row is a valid data row (must have at least 8 columns)
-            if len(cols) >= 8:
-                attendance_data.append({
-                    "code": cols[1].text.strip(),
-                    "subject": cols[2].text.strip(),
-                    "total": cols[5].text.strip(),
-                    "present": cols[6].text.strip(),
-                    "percent": cols[7].text.strip()
-                })
-                
-        if not attendance_data:
-            return jsonify({"error": "No attendance records extracted", "raw_rows_found": len(rows)}), 404
-            
+        # Always return 200 if login was successful, even if table was empty
         return jsonify({"success": True, "data": attendance_data})
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 200
 #here end
 @app.route('/api/biometric', methods=['POST'])
 def get_biometric():
