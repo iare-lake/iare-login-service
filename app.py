@@ -15,7 +15,13 @@ HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
     "Referer": "https://samvidha.iare.ac.in/index.php"
 }
-
+#here
+# Add this right below HEADERS:
+GET_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "Referer": "https://samvidha.iare.ac.in/home"
+}
+#here done
 def do_fast_login(roll, password):
     """Logs in via the hidden AJAX API. Returns the session if successful, else None."""
     session = requests.Session()
@@ -165,20 +171,26 @@ def get_profile():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 #here
+#here
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
-    data = request.json
+    data = request.json or {}
     roll = data.get('roll')
     password = data.get('password')
     
     session = do_fast_login(roll, password)
     if not session:
-        # Keep 401 strictly for login failures
         return jsonify({"error": "Invalid credentials"}), 401
         
     try:
         att_url = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
-        resp = session.get(att_url, headers=HEADERS, timeout=15)
+        # Using GET_HEADERS avoids Samvidha rejecting the request as an illegal AJAX call
+        resp = session.get(att_url, headers=GET_HEADERS, timeout=15)
+        
+        # Check if Samvidha rejected the session and dumped us back at login
+        if "txt_uname" in resp.text or resp.url.endswith("index.php"):
+            return jsonify({"success": False, "error": "Session expired or redirected to login"}), 401
+
         soup = BeautifulSoup(resp.text, 'html.parser')
         
         target_table = None
@@ -193,18 +205,21 @@ def get_attendance():
                 cols = row.find_all('td')
                 if len(cols) >= 8:
                     attendance_data.append({
-                        "code": cols[1].text.strip(),
-                        "subject": cols[2].text.strip(),
-                        "total": cols[5].text.strip(),
-                        "present": cols[6].text.strip(),
-                        "percent": cols[7].text.strip()
+                        "code": cols[1].get_text(strip=True),
+                        "subject": cols[2].get_text(strip=True),
+                        "type": cols[3].get_text(strip=True),
+                        "category": cols[4].get_text(strip=True),
+                        "total": cols[5].get_text(strip=True),
+                        "present": cols[6].get_text(strip=True),
+                        "percent": cols[7].get_text(strip=True),
+                        "status": cols[8].get_text(strip=True) if len(cols) > 8 else ""
                     })
         
-        # Always return 200 if login was successful, even if table was empty
         return jsonify({"success": True, "data": attendance_data})
         
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 200
+        return jsonify({"success": False, "error": str(e)}), 500
+#here end
 #here end
 @app.route('/api/biometric', methods=['POST'])
 def get_biometric():
