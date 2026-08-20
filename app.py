@@ -164,41 +164,54 @@ def get_profile():
         return jsonify({"success": True, "data": prof_data})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+#here
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
     data = request.json
     roll = data.get('roll')
     password = data.get('password')
+    
     session = do_fast_login(roll, password)
     if not session:
         return jsonify({"error": "Invalid credentials"}), 401
+        
     try:
         att_url = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
         resp = session.get(att_url, headers=HEADERS, timeout=15)
         soup = BeautifulSoup(resp.text, 'html.parser')
+        
         target_table = None
         for t in soup.find_all('table'):
-            if "Course Name" in t.text:
+            if "Course Name" in t.text or "ATTENDANCE REPORT" in t.text:
                 target_table = t
                 break
+                
         if not target_table:
             return jsonify({"error": "Attendance table not found"}), 404
+            
         rows = target_table.find_all('tr')
         attendance_data = []
-        for row in rows[1:]:
+        
+        for row in rows:
             cols = row.find_all('td')
+            # Check if this row is a valid data row (must have at least 8 columns)
             if len(cols) >= 8:
                 attendance_data.append({
+                    "code": cols[1].text.strip(),
                     "subject": cols[2].text.strip(),
                     "total": cols[5].text.strip(),
                     "present": cols[6].text.strip(),
                     "percent": cols[7].text.strip()
                 })
+                
+        if not attendance_data:
+            return jsonify({"error": "No attendance records extracted", "raw_rows_found": len(rows)}), 404
+            
         return jsonify({"success": True, "data": attendance_data})
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+#here end
 @app.route('/api/biometric', methods=['POST'])
 def get_biometric():
     data = request.json
