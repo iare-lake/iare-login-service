@@ -3,34 +3,42 @@ import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from datetime import datetime # <-- Added this for Date Formatting
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
-# The "Secret Handshake" Headers
-HEADERS = {
+# Standard Browser Headers for scraping pages
+GET_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Referer": "https://samvidha.iare.ac.in/home"
+}
+
+# AJAX Headers for Login POST
+POST_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     "X-Requested-With": "XMLHttpRequest",
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
     "Referer": "https://samvidha.iare.ac.in/index.php"
 }
-#here
-# Add this right below HEADERS:
-GET_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-    "Referer": "https://samvidha.iare.ac.in/home"
-}
-#here done
+
 def do_fast_login(roll, password):
-    """Logs in via the hidden AJAX API. Returns the session if successful, else None."""
+    """Logs in via the hidden AJAX API. Returns the authenticated session if successful, else None."""
     session = requests.Session()
     try:
-        session.get("https://samvidha.iare.ac.in/index.php", headers=HEADERS, timeout=10)
+        # Step 1: Hit index to establish initial session cookies
+        session.get("https://samvidha.iare.ac.in/index.php", headers=GET_HEADERS, timeout=10)
+        
+        # Step 2: Post login credentials
         login_url = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
         payload = {"username": roll, "password": password}
-        resp = session.post(login_url, data=payload, headers=HEADERS, timeout=10)
+        resp = session.post(login_url, data=payload, headers=POST_HEADERS, timeout=10)
+        
         if resp.json().get("status") == "1":
+            # Step 3: Hit home page once to register the logged-in session state fully
+            session.get("https://samvidha.iare.ac.in/home", headers=GET_HEADERS, timeout=10)
             return session
     except Exception as e:
         print(f"Login Error: {e}")
@@ -40,7 +48,7 @@ def scrape_profile_data(session):
     """Scrapes student profile details from https://samvidha.iare.ac.in/home?action=profile"""
     try:
         prof_url = "https://samvidha.iare.ac.in/home?action=profile"
-        resp = session.get(prof_url, headers=HEADERS, timeout=15)
+        resp = session.get(prof_url, headers=GET_HEADERS, timeout=15)
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         profile_data = {}
@@ -50,10 +58,7 @@ def scrape_profile_data(session):
                 return
             l = label.lower().strip()
             v = val.strip()
-            if not v:
-                return
-            # Skip labels that are just numbers or irrelevant
-            if l.isdigit() or l in ["s.no", "view", "status"]:
+            if not v or l.isdigit() or l in ["s.no", "view", "status"]:
                 return
             if ("aebas" in l or "jntuh" in l) and "jntuhAebas" not in profile_data:
                 profile_data["jntuhAebas"] = v
@@ -101,34 +106,23 @@ def scrape_profile_data(session):
             elif ("name" in l) and "name" not in profile_data and "course" not in l and "father" not in l and "mother" not in l:
                 profile_data["name"] = v
 
-        # 1. Parse <dt>/<dd> pairs (General info, Admin info cards)
         for dl in soup.find_all('dl'):
             dts = dl.find_all('dt')
             dds = dl.find_all('dd')
             for dt, dd in zip(dts, dds):
-                label = dt.get_text(strip=True)
-                val = dd.get_text(strip=True)
-                match_and_set(label, val)
+                match_and_set(dt.get_text(strip=True), dd.get_text(strip=True))
 
-        # 2. Parse <strong> + <p class="text-muted"> pairs (Contacts card)
         for strong in soup.find_all('strong'):
-            label = strong.get_text(strip=True)
-            # The value is in the next <p> sibling
             next_p = strong.find_next_sibling('p')
             if next_p:
-                val = next_p.get_text(strip=True)
-                match_and_set(label, val)
+                match_and_set(strong.get_text(strip=True), next_p.get_text(strip=True))
 
-        # 3. Parse table rows & cells (certificates, etc - fallback)
         for row in soup.find_all('tr'):
             cols = row.find_all(['td', 'th'])
             if len(cols) >= 2:
                 for i in range(0, len(cols) - 1, 2):
-                    label = cols[i].text.strip()
-                    val = cols[i+1].text.strip()
-                    match_and_set(label, val)
+                    match_and_set(cols[i].text.strip(), cols[i+1].text.strip())
 
-        # 4. Inspect input & select fields (fallback)
         for inp in soup.find_all(['input', 'select', 'textarea']):
             name_attr = (inp.get('name') or inp.get('id') or inp.get('placeholder') or '').lower()
             val = inp.get('value', '').strip()
@@ -144,7 +138,7 @@ def scrape_profile_data(session):
 
 @app.route('/api/verify', methods=['POST'])
 def verify_user():
-    data = request.json
+    data = request.json or {}
     roll = data.get('roll')
     password = data.get('password')
     if not roll or not password:
@@ -157,7 +151,7 @@ def verify_user():
 
 @app.route('/api/profile', methods=['POST'])
 def get_profile():
-    data = request.json
+    data = request.json or {}
     roll = data.get('roll')
     password = data.get('password')
     if not roll or not password:
@@ -170,8 +164,7 @@ def get_profile():
         return jsonify({"success": True, "data": prof_data})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-#here
-#here
+
 @app.route('/api/attendance', methods=['POST'])
 def get_attendance():
     data = request.json or {}
@@ -183,26 +176,26 @@ def get_attendance():
         return jsonify({"error": "Invalid credentials"}), 401
         
     try:
+        # Step 1: Request Attendance page
         att_url = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
-        # Using GET_HEADERS avoids Samvidha rejecting the request as an illegal AJAX call
         resp = session.get(att_url, headers=GET_HEADERS, timeout=15)
         
-        # Check if Samvidha rejected the session and dumped us back at login
-        if "txt_uname" in resp.text or resp.url.endswith("index.php"):
-            return jsonify({"success": False, "error": "Session expired or redirected to login"}), 401
-
         soup = BeautifulSoup(resp.text, 'html.parser')
         
+        # Step 2: Target the attendance table (which has "Course Code" or "ATTENDANCE REPORT")
         target_table = None
         for t in soup.find_all('table'):
-            if "Course Name" in t.text or "Attended" in t.text:
+            if "Course Code" in t.text or "Attended" in t.text:
                 target_table = t
                 break
                 
         attendance_data = []
         if target_table:
-            for row in target_table.find_all('tr'):
+            # Skip the <thead> and iterate rows
+            rows = target_table.find_all('tr')
+            for row in rows:
                 cols = row.find_all('td')
+                # attendance table rows have 9 td elements
                 if len(cols) >= 8:
                     attendance_data.append({
                         "code": cols[1].get_text(strip=True),
@@ -215,15 +208,14 @@ def get_attendance():
                         "status": cols[8].get_text(strip=True) if len(cols) > 8 else ""
                     })
         
-        return jsonify({"success": True, "data": attendance_data})
+        return jsonify({"success": True, "count": len(attendance_data), "data": attendance_data})
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-#here end
-#here end
+
 @app.route('/api/biometric', methods=['POST'])
 def get_biometric():
-    data = request.json
+    data = request.json or {}
     roll = data.get('roll')
     password = data.get('password')
     session = do_fast_login(roll, password)
@@ -233,7 +225,7 @@ def get_biometric():
         
     try:
         bio_url = "https://samvidha.iare.ac.in/home?action=std_bio"
-        resp = session.get(bio_url, headers=HEADERS, timeout=15)
+        resp = session.get(bio_url, headers=GET_HEADERS, timeout=15)
         soup = BeautifulSoup(resp.text, 'html.parser')
         
         target_table = None
@@ -246,17 +238,16 @@ def get_biometric():
             return jsonify({"error": "Biometric table not found"}), 404
             
         rows = target_table.find_all('tr')
-        biometric_data =[]
+        biometric_data = []
         
         for row in rows:
             cols = row.find_all('td')
             if len(cols) >= 7:
                 date_str = cols[3].text.strip()
-                status = cols[9].text.strip()
+                status = cols[9].text.strip() if len(cols) > 9 else cols[-1].text.strip()
                 
                 if date_str and "Date" not in date_str:
                     try:
-                        # Convert 10-Apr-2026 -> 2026-04-10
                         date_obj = datetime.strptime(date_str, "%d-%b-%Y")
                         iso_date = date_obj.strftime("%Y-%m-%d")
                         biometric_data.append({
@@ -276,7 +267,7 @@ def get_biometric():
 
 @app.route('/api/download', methods=['POST'])
 def proxy_download():
-    data = request.json
+    data = request.json or {}
     roll = data.get('roll')
     doc_type = data.get('type')
     base_url = "https://iare-data.s3.ap-south-1.amazonaws.com/uploads"
@@ -302,28 +293,27 @@ def proxy_download():
     except:
         return jsonify({"error": "Server Error"}), 500
 
-@app.route('/api/debug-profile', methods=['POST'])
-def debug_profile():
-    data = request.json
+@app.route('/api/debug-attendance', methods=['POST'])
+def debug_attendance():
+    """Debug route to view raw HTML length and tables found"""
+    data = request.json or {}
     roll = data.get('roll')
     password = data.get('password')
-    if not roll or not password:
-        return jsonify({"error": "Missing credentials"}), 400
     session = do_fast_login(roll, password)
     if not session:
         return jsonify({"error": "Invalid credentials"}), 401
-    try:
-        prof_url = "https://samvidha.iare.ac.in/home?action=profile"
-        resp = session.get(prof_url, headers=HEADERS, timeout=15)
-        scraped = scrape_profile_data(session)
-        return jsonify({
-            "success": True,
-            "scraped_fields": scraped,
-            "raw_html_length": len(resp.text),
-            "raw_html_preview": resp.text[:5000]
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    
+    att_url = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
+    resp = session.get(att_url, headers=GET_HEADERS, timeout=15)
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    tables = soup.find_all('table')
+    
+    return jsonify({
+        "html_length": len(resp.text),
+        "tables_found": len(tables),
+        "url_after_get": resp.url,
+        "is_login_page": "txt_uname" in resp.text
+    })
 
 @app.route('/')
 def home():
