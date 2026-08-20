@@ -8,12 +8,12 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Standard Browser Headers for scraping pages
+# Standard Browser Headers
 GET_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
-    "Referer": "https://samvidha.iare.ac.in/home"
+    "Referer": "https://samvidha.iare.ac.in/"
 }
 
 # AJAX Headers for Login POST
@@ -26,45 +26,46 @@ POST_HEADERS = {
 }
 
 def do_fast_login(roll, password):
-    """Logs in via the Samvidha AJAX API with dynamic CSRF token and cookie handling."""
+    """Logs in via the Samvidha AJAX API with CSRF token & session management."""
     session = requests.Session()
     try:
-        # Step 1: Initialize session cookies and extract CSRF token
-        init_resp = session.get("https://samvidha.iare.ac.in/index.php", headers=GET_HEADERS, timeout=10)
+        # Step 1: Request root page to initiate session and capture CSRF token
+        init_resp = session.get("https://samvidha.iare.ac.in/", headers=GET_HEADERS, timeout=10)
         
         soup = BeautifulSoup(init_resp.text, 'html.parser')
         csrf_meta = soup.find('meta', {'name': 'csrf-token'})
         csrf_token = csrf_meta.get('content') if csrf_meta else None
 
         if not csrf_token:
-            print("Failed to extract CSRF token from login page.")
+            print("Failed to extract CSRF token.")
             return None
 
-        # Step 2: Post login credentials with the dynamic CSRF token
+        # Step 2: POST credentials with dynamic CSRF token in header and body
         login_url = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
         payload = {
             "username": roll,
-            "password": password
+            "password": password,
+            "csrf_token": csrf_token,
+            "_token": csrf_token
         }
         
         headers = {
             **POST_HEADERS,
+            "X-CSRF-TOKEN": csrf_token,
             "x-csrf-token": csrf_token
         }
         
         resp = session.post(login_url, data=payload, headers=headers, timeout=10)
-        
-        # Check response status safely
+
+        # Step 3: Check response status
         try:
             res_json = resp.json()
             status = str(res_json.get("status", "")).strip()
             success = status in ["1", "true", "True"] or res_json.get("success") is True
         except Exception:
-            # Fallback text check if response is not standard JSON
             success = '"status":"1"' in resp.text or '"status":1' in resp.text
 
         if success:
-            # Step 3: Register logged-in state on home page
             session.get("https://samvidha.iare.ac.in/home", headers=GET_HEADERS, timeout=10)
             return session
         else:
@@ -213,7 +214,7 @@ def get_attendance():
         
         soup = BeautifulSoup(resp.text, 'html.parser')
         
-        # Step 2: Target the attendance table (which has "Course Code" or "ATTENDANCE REPORT")
+        # Step 2: Target the attendance table
         target_table = None
         for t in soup.find_all('table'):
             if "Course Code" in t.text or "Attended" in t.text:
@@ -222,11 +223,9 @@ def get_attendance():
                 
         attendance_data = []
         if target_table:
-            # Skip the <thead> and iterate rows
             rows = target_table.find_all('tr')
             for row in rows:
                 cols = row.find_all('td')
-                # attendance table rows have 9 td elements
                 if len(cols) >= 8:
                     attendance_data.append({
                         "code": cols[1].get_text(strip=True),
