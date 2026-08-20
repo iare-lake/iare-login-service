@@ -25,23 +25,41 @@ POST_HEADERS = {
 }
 
 def do_fast_login(roll, password):
-    """Logs in via the hidden AJAX API. Returns the authenticated session if successful, else None."""
+    """Logs in via the Samvidha AJAX API with robust status and cookie handling."""
     session = requests.Session()
     try:
-        # Step 1: Hit index to establish initial session cookies
+        # Step 1: Initialize session cookies
         session.get("https://samvidha.iare.ac.in/index.php", headers=GET_HEADERS, timeout=10)
         
-        # Step 2: Post login credentials
+        # Step 2: Post login credentials with dual parameter support
         login_url = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
-        payload = {"username": roll, "password": password}
+        payload = {
+            "username": roll,
+            "password": password,
+            "txt_uname": roll,
+            "txt_pwd": password
+        }
         resp = session.post(login_url, data=payload, headers=POST_HEADERS, timeout=10)
         
-        if resp.json().get("status") == "1":
-            # Step 3: Hit home page once to register the logged-in session state fully
+        # Check response status safely (handles int 1, string "1", or boolean True)
+        try:
+            res_json = resp.json()
+            status = str(res_json.get("status", "")).strip()
+            success = status in ["1", "true", "True"] or res_json.get("success") is True
+        except Exception:
+            # Fallback text check if response is not standard JSON
+            success = '"status":1' in resp.text or '"status":"1"' in resp.text
+
+        if success:
+            # Step 3: Register logged-in state on home page
             session.get("https://samvidha.iare.ac.in/home", headers=GET_HEADERS, timeout=10)
             return session
+        else:
+            print(f"Login rejected by Samvidha: {resp.text}")
+
     except Exception as e:
-        print(f"Login Error: {e}")
+        print(f"Login Exception: {e}")
+        
     return None
 
 def scrape_profile_data(session):
