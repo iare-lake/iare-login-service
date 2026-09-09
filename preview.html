@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IARE Lake — Attendance Register & Timetable</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --bg-glass: rgba(255, 255, 255, 0.04);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --accent-primary: #6366f1;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-purple: #8b5cf6;
+            
+            --present-bg: rgba(16, 185, 129, 0.15);
+            --present-border: rgba(16, 185, 129, 0.35);
+            --present-text: #34d399;
+            
+            --absent-bg: rgba(244, 63, 94, 0.15);
+            --absent-border: rgba(244, 63, 94, 0.35);
+            --absent-text: #fb7185;
+
+            --mixed-bg: rgba(245, 158, 11, 0.15);
+            --mixed-border: rgba(245, 158, 11, 0.35);
+            --mixed-text: #fbbf24;
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(6, 182, 212, 0.08) 0px, transparent 60%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px 20px 80px;
+        }
+
+        /* Navbar Header */
+        header.app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .brand-title h1 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .auth-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 4px 12px;
+            gap: 8px;
+        }
+
+        .input-group i {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .input-group input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            width: 120px;
+        }
+
+        .btn-load {
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            outline: none;
+            padding: 9px 18px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-load:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-share {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            padding: 9px 16px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-share:hover {
+            background: rgba(99, 102, 241, 0.3);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        /* Shared Badge Banner */
+        .shared-mode-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: var(--radius-lg);
+            padding: 12px 20px;
+            margin-bottom: 20px;
+        }
+
+        .shared-mode-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Navigation Tabs */
+        .tabs-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: rgba(17, 24, 39, 0.5);
+            padding: 6px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-glass);
+            width: fit-content;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-gradient);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Overview Stat Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-hover);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-primary);
+        }
+
+        .stat-card.present::before { background: var(--accent-emerald); }
+        .stat-card.absent::before { background: var(--accent-rose); }
+        .stat-card.percentage::before { background: var(--accent-cyan); }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stat-val {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        .stat-val.highlight {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 14px 20px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .select-filter {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .select-filter:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .view-switcher {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+        }
+
+        .view-btn {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn.active {
+            background: var(--accent-primary);
+            color: #fff;
+        }
+
+        /* Tables Styling */
+        .table-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            max-height: 650px;
+        }
+
+        table.register-table,
+        table.timetable-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        table.register-table th, 
+        table.register-table td,
+        table.timetable-table th,
+        table.timetable-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-glass);
+            border-right: 1px solid var(--border-glass);
+            white-space: nowrap;
+        }
+
+        table.register-table thead th,
+        table.timetable-table thead th {
+            background: #131b2e;
+            color: var(--text-secondary);
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        table.register-table tbody tr:hover td,
+        table.timetable-table tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        table.register-table th.sticky-col,
+        table.register-table td.sticky-col,
+        table.timetable-table th.sticky-col,
+        table.timetable-table td.sticky-col {
+            position: sticky;
+            left: 0;
+            background: #111827;
+            z-index: 5;
+            text-align: left;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            border-right: 2px solid var(--border-glass);
+        }
+
+        table.register-table thead th.sticky-col,
+        table.timetable-table thead th.sticky-col {
+            z-index: 15;
+            background: #162035;
+        }
+
+        /* Attendance Badges */
+        .att-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 4px;
+            user-select: none;
+        }
+
+        .att-badge:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .att-badge.present {
+            background: var(--present-bg);
+            border: 1px solid var(--present-border);
+            color: var(--present-text);
+        }
+
+        .att-badge.absent {
+            background: var(--absent-bg);
+            border: 1px solid var(--absent-border);
+            color: var(--absent-text);
+        }
+
+        .att-badge.mixed {
+            background: var(--mixed-bg);
+            border: 1px solid var(--mixed-border);
+            color: var(--mixed-text);
+        }
+
+        .att-badge.empty {
+            color: var(--text-muted);
+            cursor: default;
+        }
+        .att-badge.empty:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Timetable Grid Cells */
+        .tt-cell-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            min-width: 140px;
+            text-align: left;
+            padding: 4px 2px;
+        }
+
+        .tt-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .tt-subject-chip {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+        }
+
+        .type-tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .type-tag.theory {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+        }
+
+        .type-tag.lab {
+            background: rgba(168, 85, 247, 0.2);
+            color: #d8b4fe;
+            border: 1px solid rgba(168, 85, 247, 0.4);
+        }
+
+        .tt-room-pill {
+            font-size: 11px;
+            color: var(--accent-amber);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
+
+        .tt-faculty-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 160px;
+        }
+
+        .lunch-col {
+            background: rgba(236, 72, 153, 0.08) !important;
+            color: #f472b6;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 1px;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            padding: 8px 6px !important;
+        }
+
+        /* Day Selector for Timetable */
+        .day-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .day-tab-btn {
+            padding: 7px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .day-tab-btn:hover {
+            border-color: var(--accent-primary);
+            color: #fff;
+        }
+
+        .day-tab-btn.active {
+            background: var(--accent-primary);
+            color: #fff;
+            border-color: var(--accent-primary);
+        }
+
+        /* Directory Cards */
+        .directory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .dir-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .dir-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-hover);
+        }
+
+        .dir-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dir-code {
+            font-size: 12px;
+            font-weight: 800;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent-primary);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .dir-short {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .dir-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .dir-faculty {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+        }
+
+        /* Daily Timeline View */
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .timeline-day-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 18px 22px;
+            transition: transform 0.2s ease;
+        }
+
+        .timeline-day-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .day-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .day-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .day-title span.date-tag {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+
+        .period-blocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .period-card {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .period-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-primary);
+        }
+
+        .period-card.status-present { border-left: 3px solid var(--accent-emerald); }
+        .period-card.status-absent { border-left: 3px solid var(--accent-rose); }
+        .period-card.empty-slot {
+            opacity: 0.4;
+            border-left: 3px solid var(--text-muted);
+            cursor: default;
+        }
+
+        .period-number {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .period-subject {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .period-topic {
+            font-size: 11px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+        }
+
+        /* Modal Details */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            padding: 20px;
+        }
+
+        .modal-backdrop.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #111827;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 580px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+            transform: scale(0.95);
+            transition: transform 0.25s ease;
+        }
+
+        .modal-backdrop.show .modal-card { transform: scale(1); }
+
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .modal-title h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .modal-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .modal-periods-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-period-item {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .modal-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .period-badge-num {
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+
+        .topic-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .link-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .action-link-btn {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-ppt {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+        }
+        .btn-ppt:hover { background: rgba(99, 102, 241, 0.4); }
+
+        .btn-yt {
+            background: rgba(244, 63, 94, 0.2);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+        .btn-yt:hover { background: rgba(244, 63, 94, 0.4); }
+
+        /* PRIVACY & SHARE MODAL STYLING */
+        .privacy-option-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .privacy-option-card:hover,
+        .privacy-option-card.selected {
+            border-color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .privacy-radio {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-primary);
+        }
+
+        .privacy-opt-text h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .privacy-opt-text p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .perm-checkbox-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-glass);
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .perm-checkbox-row:last-child { border-bottom: none; }
+
+        .share-link-box {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 6px 10px;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .share-link-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            flex: 1;
+        }
+
+        .btn-copy {
+            background: var(--accent-primary);
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy:hover { opacity: 0.9; }
+
+        /* Loading Spinner */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 768px) {
+            header.app-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .auth-bar {
+                flex-wrap: wrap;
+            }
+            .input-group input { width: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand-box">
+            <div class="brand-logo">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="brand-title">
+                <h1>IARE Lake Intelligence</h1>
+                <p>Live Attendance Register & Smart Weekly Timetable</p>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <div class="auth-bar" id="authBarContainer">
+                <div class="input-group">
+                    <i class="fa-solid fa-id-card"></i>
+                    <input type="text" id="rollInput" placeholder="Roll No" value="25951A6705">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-key"></i>
+                    <input type="password" id="passInput" placeholder="Password" value="iare">
+                </div>
+                <button class="btn-load" id="loadDataBtn" onclick="loadAllData()">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Load Data</span>
+                </button>
+            </div>
+
+            <!-- Share & Privacy Button -->
+            <button class="btn-share" id="openShareModalBtn" onclick="openShareModal()">
+                <i class="fa-solid fa-share-nodes"></i>
+                <span>Share & Privacy</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Shared Mode Banner (Shown if viewing via token) -->
+    <div id="sharedModeBanner" class="shared-mode-banner hidden">
+        <div class="shared-mode-info">
+            <i class="fa-solid fa-eye" style="color:var(--accent-cyan);"></i>
+            <span>Viewing Shared Register of <span id="sharedStudentName" style="color:var(--accent-cyan);">Student</span> (<span id="sharedRollVal">—</span>)</span>
+        </div>
+        <span style="font-size:12px; font-weight:700; color:var(--text-secondary); background:rgba(0,0,0,0.3); padding:4px 10px; border-radius:8px;">
+            <i class="fa-solid fa-lock"></i> Read-Only Mode
+        </span>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+        <button class="tab-btn active" id="tabRegisterBtn" onclick="switchTab('register')">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span>Attendance Register</span>
+        </button>
+        <button class="tab-btn" id="tabTimetableBtn" onclick="switchTab('timetable')">
+            <i class="fa-solid fa-table-cells"></i>
+            <span>Student Timetable</span>
+        </button>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loadingBox" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p id="loadingMsg">Syncing real-time records from Samvidha...</p>
+    </div>
+
+    <!-- SECTION 1: ATTENDANCE REGISTER -->
+    <section id="registerSection">
+        <!-- Overview Stats -->
+        <div class="stats-grid">
+            <div class="stat-card percentage">
+                <div class="stat-header">
+                    <span>Overall Attendance</span>
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div class="stat-val highlight" id="statOverallPct">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span>Total Conducted</span>
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div class="stat-val" id="statTotalHeld">—</div>
+            </div>
+            <div class="stat-card present">
+                <div class="stat-header">
+                    <span>Total Present</span>
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="stat-val" id="statTotalPresent" style="color: var(--accent-emerald);">—</div>
+            </div>
+            <div class="stat-card absent">
+                <div class="stat-header">
+                    <span>Total Absent</span>
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div class="stat-val" id="statTotalAbsent" style="color: var(--accent-rose);">—</div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+            <!-- View Switcher on the LEFT -->
+            <div class="view-switcher">
+                <button class="view-btn active" id="viewTimelineBtn" onclick="switchRegisterView('timeline')">
+                    <i class="fa-solid fa-timeline"></i>
+                    <span>Daily Timeline</span>
+                </button>
+                <button class="view-btn" id="viewMatrixBtn" onclick="switchRegisterView('matrix')">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Matrix View</span>
+                </button>
+            </div>
+
+            <!-- Filters on the RIGHT -->
+            <div class="filter-group">
+                <label for="monthFilter" style="font-size:12px; color:var(--text-muted); font-weight:700;">MONTH:</label>
+                <select id="monthFilter" class="select-filter" onchange="renderRegister()">
+                    <option value="ALL">All Months</option>
+                </select>
+
+                <label for="subjectFilter" style="font-size:12px; color:var(--text-muted); font-weight:700;">SUBJECT:</label>
+                <select id="subjectFilter" class="select-filter" onchange="renderRegister()">
+                    <option value="ALL">All Subjects</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Matrix Table View -->
+        <div class="table-card hidden" id="matrixViewContainer">
+            <div class="table-responsive">
+                <table class="register-table" id="registerTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Timeline View -->
+        <div class="timeline-container" id="timelineViewContainer"></div>
+    </section>
+
+    <!-- SECTION 2: TIMETABLE -->
+    <section id="timetableSection" class="hidden">
+        <!-- Controls & Meta Bar -->
+        <div class="controls-bar">
+            <div class="filter-group">
+                <span style="font-size:13px; font-weight:700; color:var(--accent-cyan);"><i class="fa-solid fa-school"></i> AY: <span id="ttAyVal" style="color:#fff;">—</span></span>
+                <span style="color:var(--border-glass);">|</span>
+                <span style="font-size:13px; font-weight:700; color:var(--accent-primary);"><i class="fa-solid fa-users"></i> Section: <span id="ttSectionVal" style="color:#fff;">—</span></span>
+            </div>
+
+            <div class="day-filter-bar" style="margin-bottom:0;" id="dayFilterTabs">
+                <button class="day-tab-btn active" onclick="filterTimetableDay('ALL')">Full Week Grid</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Monday')">Mon</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Tuesday')">Tue</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Wednesday')">Wed</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Thursday')">Thu</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Friday')">Fri</button>
+                <button class="day-tab-btn" onclick="filterTimetableDay('Saturday')">Sat</button>
+            </div>
+        </div>
+
+        <!-- Weekly Timetable Grid Table -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="timetable-table" id="ttMainTable">
+                    <thead>
+                        <tr>
+                            <th class="sticky-col">DAY</th>
+                            <th>
+                                <div>PERIOD 1</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">09:40 - 10:30</div>
+                            </th>
+                            <th>
+                                <div>PERIOD 2</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">10:30 - 11:20</div>
+                            </th>
+                            <th>
+                                <div>PERIOD 3</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">11:20 - 12:10</div>
+                            </th>
+                            <th class="lunch-col" style="writing-mode:horizontal-tb; padding:12px 10px !important;">
+                                <div>LUNCH BREAK</div>
+                                <div style="font-size:10px; opacity:0.8;">12:10 - 12:50</div>
+                            </th>
+                            <th>
+                                <div>PERIOD 4</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">12:50 - 01:40</div>
+                            </th>
+                            <th>
+                                <div>PERIOD 5</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">01:40 - 02:30</div>
+                            </th>
+                            <th>
+                                <div>PERIOD 6</div>
+                                <div style="font-size:10px; color:var(--text-muted); font-weight:500;">02:30 - 03:20</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="ttMainTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Course & Faculty Directory -->
+        <div style="margin-top:32px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-book-open-reader" style="color:var(--accent-primary);"></i>
+                    Course & Faculty Directory (All Registered Courses)
+                </h3>
+                <span id="dirCountBadge" style="font-size:12px; font-weight:700; background:rgba(255,255,255,0.08); padding:3px 10px; border-radius:12px; color:var(--text-secondary);">
+                    0 Subjects
+                </span>
+            </div>
+            <div class="directory-grid" id="ttDirectoryContainer"></div>
+        </div>
+    </section>
+</div>
+
+<!-- CELL DRILLDOWN MODAL -->
+<div class="modal-backdrop" id="drilldownModal" onclick="closeModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div class="modal-title">
+                <h3 id="modalSubjectTitle">Subject Details</h3>
+                <p id="modalDateSubtitle">29 Aug, 2026</p>
+            </div>
+            <button class="modal-close-btn" onclick="closeModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-periods-list" id="modalPeriodsList"></div>
+    </div>
+</div>
+
+<!-- SHARE & PRIVACY SETTINGS MODAL (PREVIEW BOX) -->
+<div class="modal-backdrop" id="shareModal" onclick="closeShareModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div class="modal-title">
+                <h3><i class="fa-solid fa-shield-halved" style="color:var(--accent-primary); margin-right:6px;"></i> Share & Privacy Options</h3>
+                <p>Configure who can view your Attendance Register & Timetable via Token</p>
+            </div>
+            <button class="modal-close-btn" onclick="closeShareModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:8px;">
+                Privacy Audience
+            </label>
+
+            <!-- Option 1: Friends Only (IARE Lake ecosystem) -->
+            <label class="privacy-option-card selected" onclick="selectPrivacyOption('friends')">
+                <input type="radio" name="privacyRadio" value="friends" checked class="privacy-radio">
+                <div class="privacy-opt-text">
+                    <h4>👥 Friends Only (Recommended)</h4>
+                    <p>Only accepted Bubbled Friends on IARE Lake can view your register and timetable.</p>
+                </div>
+            </label>
+
+            <!-- Option 2: Public -->
+            <label class="privacy-option-card" onclick="selectPrivacyOption('public')">
+                <input type="radio" name="privacyRadio" value="public" class="privacy-radio">
+                <div class="privacy-opt-text">
+                    <h4>🌐 Public (Anyone with Token Link)</h4>
+                    <p>Anyone with your share link can view your attendance without needing your password.</p>
+                </div>
+            </label>
+
+            <!-- Option 3: Private -->
+            <label class="privacy-option-card" onclick="selectPrivacyOption('private')">
+                <input type="radio" name="privacyRadio" value="private" class="privacy-radio">
+                <div class="privacy-opt-text">
+                    <h4>🔒 Private (Disabled)</h4>
+                    <p>Turn off sharing. No one will be able to access your attendance via link.</p>
+                </div>
+            </label>
+        </div>
+
+        <!-- Granular Permissions Checklist -->
+        <div style="margin-bottom:18px;">
+            <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:8px;">
+                Granular Permissions
+            </label>
+            <div class="perm-checkbox-row">
+                <span>Share Subject Matrix & Daily Attendance %</span>
+                <input type="checkbox" id="permRegister" checked style="accent-color:var(--accent-primary); width:16px; height:16px;">
+            </div>
+            <div class="perm-checkbox-row">
+                <span>Share Period Breakdown & Topics Covered</span>
+                <input type="checkbox" id="permTopics" checked style="accent-color:var(--accent-primary); width:16px; height:16px;">
+            </div>
+            <div class="perm-checkbox-row">
+                <span>Share Weekly Student Timetable</span>
+                <input type="checkbox" id="permTimetable" checked style="accent-color:var(--accent-primary); width:16px; height:16px;">
+            </div>
+            <div class="perm-checkbox-row">
+                <span>Hide Phone Number & Personal Email</span>
+                <input type="checkbox" id="permHideContact" checked style="accent-color:var(--accent-primary); width:16px; height:16px;">
+            </div>
+        </div>
+
+        <!-- Token Generation & Link -->
+        <div>
+            <button class="btn-load" style="width:100%; justify-content:center; padding:11px;" onclick="generateShareToken()">
+                <i class="fa-solid fa-link"></i>
+                <span>Generate Share Token Link</span>
+            </button>
+
+            <div id="shareResultBox" class="hidden" style="margin-top:14px;">
+                <label style="font-size:11px; font-weight:700; color:var(--accent-emerald);">
+                    <i class="fa-solid fa-circle-check"></i> SHARE TOKEN LINK GENERATED:
+                </label>
+                <div class="share-link-box">
+                    <input type="text" id="shareLinkOutput" readonly class="share-link-input" value="">
+                    <button class="btn-copy" onclick="copyShareLink()">
+                        <i class="fa-regular fa-copy"></i>
+                        <span id="copyBtnText">Copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let registerData = null;
+    let timetableData = null;
+    let currentRegisterView = 'timeline';
+    let selectedTimetableDay = 'ALL';
+    let currentPrivacyMode = 'friends';
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            // Load via Share Token ID
+            loadSharedData(token);
+        } else {
+            // Normal Live Login
+            loadAllData();
+        }
+    });
+
+    async function loadAllData() {
+        const roll = document.getElementById('rollInput').value.trim();
+        const password = document.getElementById('passInput').value.trim();
+        if (!roll || !password) {
+            alert('Please enter roll number and password');
+            return;
+        }
+
+        showLoading(true);
+
+        try {
+            // 1. Fetch Attendance Register
+            const regRes = await fetch('/api/attendance-register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roll, password })
+            });
+            const regJson = await regRes.json();
+            if (regJson.success) {
+                registerData = regJson.data;
+                populateMonthFilter();
+                populateSubjectFilter();
+                renderRegisterStats();
+                renderRegister();
+            }
+
+            // 2. Fetch Timetable
+            const ttRes = await fetch('/api/timetable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roll, password })
+            });
+            const ttJson = await ttRes.json();
+            if (ttJson.success) {
+                timetableData = ttJson.data;
+                renderTimetable();
+            }
+
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            alert("Failed to load data from server.");
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    async function loadSharedData(token) {
+        showLoading(true);
+        document.getElementById('authBarContainer').classList.add('hidden');
+        document.getElementById('openShareModalBtn').classList.add('hidden');
+
+        try {
+            const res = await fetch(`/api/share/${token}`);
+            const json = await res.json();
+            if (json.success) {
+                const s = json.data;
+                document.getElementById('sharedModeBanner').classList.remove('hidden');
+                document.getElementById('sharedStudentName').textContent = s.studentName || s.roll;
+                document.getElementById('sharedRollVal').textContent = s.roll;
+
+                if (s.register) {
+                    registerData = s.register;
+                    populateMonthFilter();
+                    populateSubjectFilter();
+                    renderRegisterStats();
+                    renderRegister();
+                }
+                if (s.timetable) {
+                    timetableData = s.timetable;
+                    renderTimetable();
+                }
+            } else {
+                alert("Share link error: " + (json.error || "Token expired or not found"));
+            }
+        } catch (err) {
+            console.error("Error loading share token:", err);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function showLoading(show) {
+        const box = document.getElementById('loadingBox');
+        if (show) box.classList.remove('hidden');
+        else box.classList.add('hidden');
+    }
+
+    function switchTab(tab) {
+        const regSec = document.getElementById('registerSection');
+        const ttSec = document.getElementById('timetableSection');
+        const regBtn = document.getElementById('tabRegisterBtn');
+        const ttBtn = document.getElementById('tabTimetableBtn');
+
+        if (tab === 'register') {
+            regSec.classList.remove('hidden');
+            ttSec.classList.add('hidden');
+            regBtn.classList.add('active');
+            ttBtn.classList.remove('active');
+        } else {
+            regSec.classList.add('hidden');
+            ttSec.classList.remove('hidden');
+            regBtn.classList.remove('active');
+            ttBtn.classList.add('active');
+        }
+    }
+
+    function switchRegisterView(view) {
+        currentRegisterView = view;
+        const matBox = document.getElementById('matrixViewContainer');
+        const timeBox = document.getElementById('timelineViewContainer');
+        const matBtn = document.getElementById('viewMatrixBtn');
+        const timeBtn = document.getElementById('viewTimelineBtn');
+
+        if (view === 'matrix') {
+            matBox.classList.remove('hidden');
+            timeBox.classList.add('hidden');
+            matBtn.classList.add('active');
+            timeBtn.classList.remove('active');
+        } else {
+            matBox.classList.add('hidden');
+            timeBox.classList.remove('hidden');
+            matBtn.classList.remove('active');
+            timeBtn.classList.add('active');
+        }
+        renderRegister();
+    }
+
+    function populateMonthFilter() {
+        if (!registerData || !registerData.availableMonths) return;
+        const select = document.getElementById('monthFilter');
+        select.innerHTML = '<option value="ALL">All Months</option>';
+        registerData.availableMonths.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            select.appendChild(opt);
+        });
+    }
+
+    function populateSubjectFilter() {
+        if (!registerData || !registerData.subjects) return;
+        const select = document.getElementById('subjectFilter');
+        select.innerHTML = '<option value="ALL">All Subjects</option>';
+        registerData.subjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.code;
+            opt.textContent = `${s.code} - ${s.name}`;
+            select.appendChild(opt);
+        });
+    }
+
+    function renderRegisterStats() {
+        if (!registerData || !registerData.summary) return;
+        const sum = registerData.summary;
+        document.getElementById('statOverallPct').textContent = sum.overallPercentage || '0.0%';
+        document.getElementById('statTotalHeld').textContent = sum.totalConducted || '0';
+        document.getElementById('statTotalPresent').textContent = sum.totalPresent || '0';
+        document.getElementById('statTotalAbsent').textContent = sum.totalAbsent || '0';
+    }
+
+    function getFilteredDates() {
+        if (!registerData || !registerData.dates) return [];
+        const month = document.getElementById('monthFilter').value;
+        const sub = document.getElementById('subjectFilter').value;
+
+        return registerData.dates.filter(d => {
+            const matchMonth = (month === 'ALL' || d.month === month);
+            const matchSub = (sub === 'ALL' || (d.records && d.records[sub]));
+            return matchMonth && matchSub;
+        });
+    }
+
+    function renderRegister() {
+        if (!registerData) return;
+        const filteredDates = getFilteredDates();
+
+        if (currentRegisterView === 'matrix') {
+            renderMatrixView(filteredDates);
+        } else {
+            renderTimelineView(filteredDates);
+        }
+    }
+
+    function renderMatrixView(dates) {
+        const table = document.getElementById('registerTable');
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+
+        const subjects = registerData.subjects || [];
+        const subFilter = document.getElementById('subjectFilter').value;
+        const visibleSubjects = (subFilter === 'ALL') ? subjects : subjects.filter(s => s.code === subFilter);
+
+        let thHtml = `<tr><th class="sticky-col">DATE</th>`;
+        visibleSubjects.forEach(s => {
+            thHtml += `<th title="${s.fullName}">
+                <div style="font-size:13px; font-weight:800;">${s.code}</div>
+                <div style="font-size:10px; font-weight:500; color:var(--text-muted);">${s.name.slice(0, 16)}...</div>
+            </th>`;
+        });
+        thHtml += `<th>DAILY TOTAL</th><th>DAY %</th></tr>`;
+        thead.innerHTML = thHtml;
+
+        let tbHtml = '';
+        dates.forEach(d => {
+            tbHtml += `<tr>
+                <td class="sticky-col">
+                    <div style="font-weight:700; color:var(--text-primary);">${d.dateDisplay}</div>
+                    <div style="font-size:10px; color:var(--text-muted);">${d.date}</div>
+                </td>`;
+
+            visibleSubjects.forEach(s => {
+                const rec = d.records ? d.records[s.code] : null;
+                if (rec) {
+                    let badgeClass = 'empty';
+                    if (rec.presentCount > 0 && rec.absentCount === 0) badgeClass = 'present';
+                    else if (rec.absentCount > 0 && rec.presentCount === 0) badgeClass = 'absent';
+                    else if (rec.presentCount > 0 && rec.absentCount > 0) badgeClass = 'mixed';
+
+                    tbHtml += `<td>
+                        <div class="att-badge ${badgeClass}" onclick="openDrilldown('${d.date}', '${s.code}')">
+                            <span>${rec.display}</span>
+                        </div>
+                    </td>`;
+                } else {
+                    tbHtml += `<td><span class="att-badge empty">—</span></td>`;
+                }
+            });
+
+            const daySum = d.daySummary || { totalConducted: 0, totalPresent: 0, percentage: '0%' };
+            tbHtml += `<td>
+                <span style="font-weight:700; color:var(--text-primary);">${daySum.totalPresent}/${daySum.totalConducted}</span>
+            </td>
+            <td>
+                <span style="font-weight:700; color:${parseFloat(daySum.percentage) >= 75 ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">${daySum.percentage}</span>
+            </td>
+            </tr>`;
+        });
+
+        tbody.innerHTML = tbHtml;
+    }
+
+    function renderTimelineView(dates) {
+        const container = document.getElementById('timelineViewContainer');
+        let html = '';
+
+        dates.forEach(d => {
+            const sum = d.daySummary || { totalConducted: 0, totalPresent: 0, percentage: '0%' };
+            html += `
+            <div class="timeline-day-card">
+                <div class="day-card-header">
+                    <div class="day-title">
+                        <span>${d.dateDisplay}</span>
+                        <span class="date-tag">${d.date}</span>
+                    </div>
+                    <div style="font-size:13px; font-weight:700;">
+                        Held: <span style="color:var(--text-primary);">${sum.totalConducted}</span> | 
+                        Attended: <span style="color:var(--accent-emerald);">${sum.totalPresent}</span> | 
+                        <span style="color:${parseFloat(sum.percentage) >= 75 ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">${sum.percentage}</span>
+                    </div>
+                </div>
+
+                <div class="period-blocks-grid">`;
+
+            for (let p = 1; p <= 6; p++) {
+                const pSlot = d.periodsTimeline ? d.periodsTimeline[String(p)] : null;
+                if (pSlot) {
+                    const isPres = (pSlot.status === 'PRESENT');
+                    html += `
+                    <div class="period-card ${isPres ? 'status-present' : 'status-absent'}" onclick="openDrilldown('${d.date}', '${pSlot.courseCode}')">
+                        <div class="period-number">Period ${p} &bull; <span style="color:${isPres ? 'var(--accent-emerald)' : 'var(--accent-rose)'}">${pSlot.status}</span></div>
+                        <div class="period-subject">${pSlot.courseCode}</div>
+                        <div class="period-topic" title="${pSlot.topic}">${pSlot.topic || 'No topic'}</div>
+                    </div>`;
+                } else {
+                    html += `
+                    <div class="period-card empty-slot">
+                        <div class="period-number">Period ${p}</div>
+                        <div class="period-subject" style="color:var(--text-muted); font-size:12px;">No Class</div>
+                    </div>`;
+                }
+            }
+
+            html += `</div></div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function openDrilldown(dateKey, courseCode) {
+        if (!registerData) return;
+        const dayEntry = registerData.dates.find(d => d.date === dateKey);
+        if (!dayEntry || !dayEntry.records || !dayEntry.records[courseCode]) return;
+
+        const record = dayEntry.records[courseCode];
+        document.getElementById('modalSubjectTitle').textContent = `${record.courseCode} - ${record.courseName}`;
+        document.getElementById('modalDateSubtitle').textContent = `${dayEntry.dateDisplay} (${dayEntry.date}) &bull; ${record.display}`;
+
+        const list = document.getElementById('modalPeriodsList');
+        let html = '';
+
+        record.periods.forEach(p => {
+            const isPres = (p.status === 'PRESENT');
+            html += `
+            <div class="modal-period-item">
+                <div class="modal-item-header">
+                    <span class="period-badge-num">Period ${p.period}</span>
+                    <span style="font-size:12px; font-weight:700; color:${isPres ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">
+                        <i class="fa-solid ${isPres ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> ${p.status}
+                    </span>
+                </div>
+                <div class="topic-text">
+                    <strong style="color:var(--text-muted); font-size:11px; text-transform:uppercase;">Topic:</strong><br>
+                    ${p.topic || 'General Lecture'}
+                </div>
+                <div class="link-actions">`;
+
+            if (p.pptLink) {
+                html += `<a href="${p.pptLink}" target="_blank" class="action-link-btn btn-ppt">
+                    <i class="fa-solid fa-file-powerpoint"></i> Download PPT
+                </a>`;
+            }
+            if (p.youtubeLink && p.youtubeLink.toLowerCase() !== 'nil') {
+                html += `<a href="${p.youtubeLink}" target="_blank" class="action-link-btn btn-yt">
+                    <i class="fa-brands fa-youtube"></i> Watch Video
+                </a>`;
+            }
+
+            html += `</div></div>`;
+        });
+
+        list.innerHTML = html;
+        document.getElementById('drilldownModal').classList.add('show');
+    }
+
+    function closeModal(event) {
+        document.getElementById('drilldownModal').classList.remove('show');
+    }
+
+    // --- TIMETABLE RENDERING ---
+
+    function filterTimetableDay(day) {
+        selectedTimetableDay = day;
+        const btns = document.querySelectorAll('.day-tab-btn');
+        btns.forEach(b => {
+            if (b.textContent.includes(day) || (day === 'ALL' && b.textContent.includes('Full Week'))) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        renderTimetableGrid();
+    }
+
+    function renderTimetable() {
+        if (!timetableData) return;
+
+        document.getElementById('ttAyVal').textContent = timetableData.academicYear || '2026-27';
+        document.getElementById('ttSectionVal').textContent = timetableData.branchSection || 'CSE';
+
+        renderTimetableGrid();
+        renderSubjectsDirectory();
+    }
+
+    function renderTimetableGrid() {
+        const tbody = document.getElementById('ttMainTableBody');
+        let html = '';
+
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const visibleDays = (selectedTimetableDay === 'ALL') ? days : [selectedTimetableDay];
+
+        visibleDays.forEach(d => {
+            const dayInfo = timetableData.schedule ? timetableData.schedule[d] : null;
+            if (!dayInfo) return;
+
+            html += `<tr>
+                <td class="sticky-col">
+                    <div style="font-weight:800; font-size:13px; color:var(--accent-cyan);">${dayInfo.day}</div>
+                    ${dayInfo.date ? `<div style="font-size:10px; color:var(--text-muted);">${dayInfo.date}</div>` : ''}
+                </td>`;
+
+            const periods = dayInfo.periods || [];
+
+            for (let i = 0; i < 3; i++) {
+                const p = periods[i];
+                html += renderPeriodCell(p);
+            }
+
+            html += `<td class="lunch-col"><span style="writing-mode:horizontal-tb; display:inline-block;">🍴</span></td>`;
+
+            for (let i = 3; i < 6; i++) {
+                const p = periods[i];
+                html += renderPeriodCell(p);
+            }
+
+            html += `</tr>`;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function renderPeriodCell(p) {
+        if (!p) {
+            return `<td><span style="color:var(--text-muted); font-size:12px;">—</span></td>`;
+        }
+
+        const isLab = p.isLab;
+        return `<td>
+            <div class="tt-cell-box">
+                <div class="tt-badge-row">
+                    <span class="tt-subject-chip">${p.shortCode}</span>
+                    <span class="type-tag ${isLab ? 'lab' : 'theory'}">${isLab ? 'LAB' : 'THEORY'}</span>
+                </div>
+                ${p.room ? `<div class="tt-room-pill"><i class="fa-solid fa-location-dot"></i> ${p.room}</div>` : ''}
+                ${p.facultyName ? `<div class="tt-faculty-text" title="${p.facultyName}"><i class="fa-solid fa-user-tie"></i> ${p.facultyName}</div>` : ''}
+            </div>
+        </td>`;
+    }
+
+    function renderSubjectsDirectory() {
+        const container = document.getElementById('ttDirectoryContainer');
+        const badge = document.getElementById('dirCountBadge');
+        const directory = timetableData.subjectsDirectory || [];
+
+        badge.textContent = `${directory.length} Courses`;
+        let html = '';
+
+        directory.forEach(sub => {
+            const isLab = sub.isLab;
+            html += `
+            <div class="dir-card">
+                <div class="dir-card-header">
+                    <span class="dir-code">${sub.subjectCode}</span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="type-tag ${isLab ? 'lab' : 'theory'}">${isLab ? 'LAB' : 'THEORY'}</span>
+                        <span class="dir-short">${sub.shortCode}</span>
+                    </div>
+                </div>
+                <div class="dir-name">${sub.subjectName}</div>
+                <div class="dir-faculty">
+                    <i class="fa-solid fa-chalkboard-user" style="color:var(--accent-primary);"></i>
+                    <span>${sub.staffName || 'Department Faculty'} ${sub.staffId ? `(${sub.staffId})` : ''}</span>
+                </div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // --- SHARE & PRIVACY MODAL LOGIC ---
+
+    function openShareModal() {
+        document.getElementById('shareModal').classList.add('show');
+    }
+
+    function closeShareModal(event) {
+        document.getElementById('shareModal').classList.remove('show');
+    }
+
+    function selectPrivacyOption(mode) {
+        currentPrivacyMode = mode;
+        const cards = document.querySelectorAll('.privacy-option-card');
+        cards.forEach(c => {
+            const radio = c.querySelector('input[type="radio"]');
+            if (radio.value === mode) {
+                c.classList.add('selected');
+                radio.checked = true;
+            } else {
+                c.classList.remove('selected');
+                radio.checked = false;
+            }
+        });
+    }
+
+    async function generateShareToken() {
+        const roll = document.getElementById('rollInput').value.trim();
+        const password = document.getElementById('passInput').value.trim();
+
+        if (!roll || !password) {
+            alert('Please enter credentials first');
+            return;
+        }
+
+        const permissions = {
+            shareRegister: document.getElementById('permRegister').checked,
+            shareTopics: document.getElementById('permTopics').checked,
+            shareTimetable: document.getElementById('permTimetable').checked,
+            hideContact: document.getElementById('permHideContact').checked
+        };
+
+        try {
+            const res = await fetch('/api/share/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roll,
+                    password,
+                    privacy: currentPrivacyMode,
+                    permissions
+                })
+            });
+            const json = await res.json();
+            if (json.success) {
+                const fullUrl = `${window.location.origin}${json.shareUrl}`;
+                document.getElementById('shareLinkOutput').value = fullUrl;
+                document.getElementById('shareResultBox').classList.remove('hidden');
+            } else {
+                alert("Failed to generate token: " + (json.error || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("Share error:", err);
+            alert("Error generating share token");
+        }
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('shareLinkOutput');
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        const btnText = document.getElementById('copyBtnText');
+        btnText.textContent = "Copied!";
+        setTimeout(() => { btnText.textContent = "Copy"; }, 2000);
+    }
+</script>
+
+</body>
+</html>

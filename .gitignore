@@ -1,0 +1,16 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & secrets
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Large local testing scraping samples (optional)
+# course_content_sample.html
+# tt_sample.html
